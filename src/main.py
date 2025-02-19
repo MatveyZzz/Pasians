@@ -104,11 +104,6 @@ class Card:
     def move(self, x, y):
         self.rect = self.rect.move(x, y)
 
-    # def get_info(self):
-    #     if self.status == "open":
-    #         return f"{self.suit}, {self.rank}"
-    #     return "XX"
-
     def get_color_and_rank(self):
         if self.status == "open":
             return self.color, self.rank

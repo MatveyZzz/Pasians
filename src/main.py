@@ -6,27 +6,27 @@ from game_manager import Game
 from config import FPS, CARD_SIZE, K, SUITS, RANKS, SCREEN_WIDTH, SCREEN_HEIGHT
 
 
-BUTTON_SIZE = SCREEN_WIDTH / 8, SCREEN_HEIGHT / 16
+BTN_SIZE = SCREEN_WIDTH / 8, SCREEN_HEIGHT / 16
 
 
-class MenuButton:
+class Button:
     def __init__(self, screen):
         self.screen = screen
-        self.button_color = (0, 100, 20)
+        self.color = (0, 100, 20)
         self.font_small = pygame.font.SysFont(None, 65)
         self.x = 1650
         self.y = 25
         self.text = "Menu"
-        self.button = pygame.draw.rect(self.screen, self.button_color,(self.x, self.y, *BUTTON_SIZE), border_radius=25)
+        self.rect = pygame.draw.rect(self.screen, self.color, (self.x, self.y, *BTN_SIZE), border_radius=25)
 
     def draw(self):
-        self.button = pygame.draw.rect(self.screen, self.button_color,(self.x, self.y, *BUTTON_SIZE), border_radius=25)
+        self.rect = pygame.draw.rect(self.screen, self.color, (self.x, self.y, *BTN_SIZE), border_radius=25)
         text = self.font_small.render(self.text, True, (255, 255, 255))
-        text_rect = text.get_rect(center=self.button.center)
+        text_rect = text.get_rect(center=self.rect.center)
         self.screen.blit(text, text_rect)
 
 
-class RestartGameButton(MenuButton):
+class RestartButton(Button):
     def __init__(self):
         super().__init__(screen)
         self.x = 1650
@@ -34,7 +34,7 @@ class RestartGameButton(MenuButton):
         self.text = "Restart"
 
 
-class ShowStatsButton(MenuButton):
+class StatsButton(Button):
     def __init__(self):
         super().__init__(screen)
         self.x = 1650
@@ -42,34 +42,30 @@ class ShowStatsButton(MenuButton):
         self.text = "Statistics"
 
 
-def move_cards_to_card(cards, destination_card):
-    for item in cards:
-        item.move_to_card(destination_card)
-        destination_card = item
+def move_cards_to_target(cards, target_card):
+    for card in cards:
+        card.move_to_card(target_card)
+        target_card = card
 
 
-def return_back_several_cards(x, y, cards):
-    for item in cards:
-        item.move_to(x, y)
+def return_cards_to_position(x, y, cards):
+    for card in cards:
+        card.move_to(x, y)
         y += 40
 
 
 class Card:
     def __init__(self, suit, rank, status, kind):
-        # super().__init__(all_sprites)
         self.suit = suit
         self.rank = rank
         self.color = "red" if self.suit in ['hearts', 'diamonds'] else "black"
         self.is_movable = True
-        self.kind_of_card = kind
-        self.card_face = load_image("cards", self.suit + "_" + self.rank + ".png", -1)
-        self.card_back = load_image("cards", "red_back2.png", -1)
+        self.kind = kind
+        self.face_image = load_image("cards", self.suit + "_" + self.rank + ".png", -1)
+        self.back_image = load_image("cards", "red_back2.png", -1)
         self.scale()
         self.status = status
-        if self.status == "open":
-            self.image = self.card_face
-        else:
-            self.image = self.card_back
+        self.image = self.face_image if self.status == "open" else self.back_image
         self.rect = pygame.rect.Rect(50, 50, *CARD_SIZE)
 
     def get_image(self):
@@ -78,24 +74,24 @@ class Card:
     def change_status(self, status):
         if status == "open":
             self.status = "open"
-            self.image = self.card_face
+            self.image = self.face_image
             self.is_movable = True
         elif status == "close":
             self.status = "close"
-            self.image = self.card_back
+            self.image = self.back_image
             self.is_movable = False
 
     def scale(self):
-        self.card_face = pygame.transform.scale(self.card_face, CARD_SIZE)
-        self.card_back = pygame.transform.scale(self.card_back, CARD_SIZE)
+        self.face_image = pygame.transform.scale(self.face_image, CARD_SIZE)
+        self.back_image = pygame.transform.scale(self.back_image, CARD_SIZE)
 
     def move_to_deck(self):
         self.rect.x = deck.drop_deck_rect.x
         self.rect.y = deck.drop_deck_rect.y
 
-    def move_to_card(self, destination_card):
-        self.rect.x = destination_card.rect.x
-        self.rect.y = destination_card.rect.y + 40
+    def move_to_card(self, target_card):
+        self.rect.x = target_card.rect.x
+        self.rect.y = target_card.rect.y + 40
 
     def move_to(self, x, y):
         self.rect.x = x
@@ -107,8 +103,7 @@ class Card:
     def get_color_and_rank(self):
         if self.status == "open":
             return self.color, self.rank
-        else:
-            return "XX"
+        return "XX"
 
 
 class Deck:
@@ -121,9 +116,7 @@ class Deck:
         self.drop_deck_rect = pygame.rect.Rect(250, 50, *CARD_SIZE)
 
     def collide_point_for_drop_deck(self, x, y):
-        if self.drop_deck_rect.collidepoint(x, y) and self.drop_deck:
-            return True
-        return False
+        return self.drop_deck_rect.collidepoint(x, y) and self.drop_deck
 
     def create_deck(self):
         self.deck = [Card(suit, rank, "close", "deck") for suit in SUITS for rank in RANKS]
@@ -151,8 +144,8 @@ class Deck:
         else:
             self.deck = self.drop_deck
             self.drop_deck = []
-            _ = [item.move(-200, 0) for item in self.deck]
-            _ = [item.change_status("close") for item in self.deck]
+            [item.move(-200, 0) for item in self.deck]
+            [item.change_status("close") for item in self.deck]
 
     def spread_cards(self):
         y = 300
@@ -160,7 +153,7 @@ class Deck:
             flag = True
             for j in range(i, 7):
                 card = self.draw_card(True)
-                card.kind_of_card = "field"
+                card.kind = "field"
                 card.is_movable = flag
                 if flag:
                     card.change_status("open")
@@ -169,7 +162,7 @@ class Deck:
                 gm.field[j].append(card)
             y += 40
 
-    def return_back_card_to_drop_deck(self, card):
+    def return_card_to_drop_deck(self, card):
         self.drop_deck.append(card)
         card.move_to_deck()
 
@@ -186,11 +179,11 @@ if __name__ == '__main__':
     response = main_menu()
     if response == "close game":
         pygame.quit()
-    gm = Game(screen)  # game manager
+    gm = Game(screen)
     deck = Deck()
-    menu_button = MenuButton(screen)
-    restart_game_button = RestartGameButton()
-    show_stats_button = ShowStatsButton()
+    menu_button = Button(screen)
+    restart_button = RestartButton()
+    stats_button = StatsButton()
     stats_is_shown = False
     running = True
     card_taken = False
@@ -213,28 +206,28 @@ if __name__ == '__main__':
             if event.type == pygame.KEYDOWN and event.key == pygame.K_TAB:
                 gm.collect_all_cards(deck)
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if menu_button.button.collidepoint(event.pos):
+                if menu_button.rect.collidepoint(event.pos):
                     response = main_menu()
                     if response == "close game":
                         gm.restart()
                         running = False
-                elif restart_game_button.button.collidepoint(event.pos):
+                elif restart_button.rect.collidepoint(event.pos):
                     gm.restart()
                     deck.restart()
-                elif show_stats_button.button.collidepoint(event.pos):
+                elif stats_button.rect.collidepoint(event.pos):
                     stats_is_shown = True
                 else:
                     coords = event.pos
 
-                    if deck.deck_rect.collidepoint(coords):  # if we want to flip through the deck
+                    if deck.deck_rect.collidepoint(coords):
                         card_taken = True
 
-                    elif deck.collide_point_for_drop_deck(*coords):  # if we want to replace card from the drop deck
+                    elif deck.collide_point_for_drop_deck(*coords):
                         card_taken_from_drop_deck = True
                         current_card = deck.draw_card()
                         gm.moving_cards = [current_card]
-                    
-                    elif response := gm.point_collide_field_card(*coords):  # if we want to replace field card
+
+                    elif response := gm.point_collide_field_card(*coords):
                         if type(response[0]) is list:
                             current_cards, old_column = response
                             if current_cards[0].is_movable:
@@ -266,97 +259,40 @@ if __name__ == '__main__':
                         current_card.move_to(rect.x, rect.y)
 
                     elif not (new_card := gm.collide_field_card(current_card)):
-                        deck.return_back_card_to_drop_deck(current_card)
+                        deck.return_card_to_drop_deck(current_card)
 
                     else:
                         current_card.move_to_card(new_card)
                     gm.moving_cards = []
                     card_taken_from_drop_deck = False
-
-                if card_taken and deck.deck_rect.collidepoint(event.pos):
+                elif card_taken:
+                    card = deck.draw_card(True)
+                    gm.moving_cards = [card]
+                    card.move(*event.pos)
                     card_taken = False
-                    deck.take_card()
+                    gm.moving_cards = []
 
-                if one_card_taken_from_field:
-                    if response := gm.point_collide_field_card(*event.pos):
-                        new_card, new_column = response
-                        if gm.check_field_card(current_card, new_column):
-                            current_card.move_to_card(new_card)
-                            gm.replace_card(current_card, old_column, new_column)
-                        else:
-                            gm.return_back_card_to(current_card, old_column)
-                            current_card.move_to(*old_coords)
-
-                    elif response := gm.collide_field_rect(current_card):
-                        rect, new_column = response
-                        current_card.move_to(rect.x, rect.y)
-                        gm.replace_card(current_card, old_column, new_column)
-
-                    elif stack := gm.point_collide_foundation_card(*event.pos):
-                        stack -= 1
-                        if gm.check_foundation_cards(current_card, stack):
-                            current_card.move_to(gm.foundation_rects[stack].x, gm.foundation_rects[stack].y)
-                            gm.replace_card_to_foundation(current_card, stack, old_column)
-                        else:
-                            gm.return_back_card_to(current_card, old_column)
-                            current_card.move_to(*old_coords)
-                    else:
-                        gm.return_back_card_to(current_card, old_column)
-                        current_card.move_to(*old_coords)
+                elif one_card_taken_from_field:
+                    if new_column := gm.collide_field_card(current_card):
+                        current_card.move_to_card(new_column)
                     gm.moving_cards = []
                     one_card_taken_from_field = False
-
-                if several_cards_taken_from_field:
-                    if response := gm.point_collide_field_card(*event.pos):
-                        new_card, new_column = response
-                        if gm.check_field_cards(current_cards, new_column):
-                            move_cards_to_card(current_cards, new_card)
-                            gm.replace_cards(current_cards, old_column, new_column)
-                        else:
-                            gm.return_back_cards_to(current_cards, old_column)
-                            return_back_several_cards(*old_coords, current_cards)
-
-                    elif response := gm.collide_field_rect(current_cards[0]):
-                        rect, new_column = response
-                        current_cards[0].move_to(rect.x, rect.y)
-                        move_cards_to_card(current_cards[1:], current_cards[0])
-                        gm.replace_cards(current_cards, old_column, new_column)
-
-                    else:
-                        gm.return_back_cards_to(current_cards, old_column)
-                        return_back_several_cards(*old_coords, current_cards)
+                elif several_cards_taken_from_field:
+                    move_cards_to_target(current_cards, new_column)
                     gm.moving_cards = []
                     several_cards_taken_from_field = False
-
-            if event.type == pygame.MOUSEMOTION:
-                if menu_button.button.collidepoint(*event.pos):
-                    menu_button.button_color = (0, 150, 20)
-                else:
-                    menu_button.button_color = (0, 100, 20)
-
-                if restart_game_button.button.collidepoint(*event.pos):
-                    restart_game_button.button_color = (0, 150, 20)
-                else:
-                    restart_game_button.button_color = (0, 100, 20)
-
-                if show_stats_button.button.collidepoint(*event.pos):
-                    show_stats_button.button_color = (0, 150, 20)
-                else:
-                    show_stats_button.button_color = (0, 100, 20)
-
-                if card_taken_from_drop_deck or one_card_taken_from_field:
-                    current_card.move(*event.rel)
-                elif several_cards_taken_from_field:
-                    for card in current_cards:
-                        card.move(*event.rel)
-        gm.render(deck)
+        screen.fill((0, 0, 0))
+        gm.show_all_field_cards()
         menu_button.draw()
-        restart_game_button.draw()
-        show_stats_button.draw()
+        restart_button.draw()
+        stats_button.draw()
+
         if stats_is_shown:
             gm.show_stats()
-        if gm.check_win():
-            gm.show_game_over_screen()
-        pygame.display.flip()
+
+        gm.show_foundation_cards()
+        gm.show_deck_cards()
+        gm.show_drop_deck_cards()
+        gm.show_cards()
+        pygame.display.update()
         clock.tick(FPS)
-    pygame.quit()
